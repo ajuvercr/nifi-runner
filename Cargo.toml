@@ -1,0 +1,17 @@
+[package]
+name = "nifi-runner"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.0.22", features = ["derive"] }
+feignhttp = { version = "0.4.5", features = ["serde_json", "json"] }
+oxigraph = "0.3.8"
+oxiri = "0.2.2"
+rio_api = "0.7.1"
+rio_turtle = "0.7.1"
+serde = { version = "1.0.147", features = ["serde_derive", "derive"] }
+serde_json = "1.0.87"
+tokio = { version = "1.21.2", features = ["rt", "macros"] }
