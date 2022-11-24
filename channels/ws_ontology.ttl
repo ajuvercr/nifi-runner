@@ -1,0 +1,32 @@
+@base <http://example.com/ns#>.
+@prefix nifi: <https://w3id.org/conn/nifi#> .
+@prefix ws: <https://w3id.org/conn/ws#> .
+@prefix : <https://w3id.org/conn#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:WsWriterChannel rdfs:subClassOf :WriterChannel;
+  :shape [
+    sh:property [
+      sh:datatype xsd:string;
+      sh:name "Ws connection url";
+      sh:description "Connection endpoint to forward messages to";
+      sh:path :wsUri;
+      sh:minCount "1"^^xsd:integer;
+      nifi:key "wsEndpoint";
+    ]
+  ].
+
+:WsReaderChannel rdfs:subClassOf :ReaderChannel;
+  :shape [
+    sh:property [
+      sh:datatype xsd:integer;
+      sh:name "Ws server port";
+      sh:description "Starts a WS endpoint on this port";
+      sh:path :wsPort;
+      sh:minCount "1"^^xsd:integer;
+      nifi:key "wsPort";
+    ]
+  ].
+

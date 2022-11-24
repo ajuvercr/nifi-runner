@@ -361,8 +361,7 @@ dependencies = [
 [[package]]
 name = "feignhttp"
 version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5c37c8d423e44553fba08be6bdabce702681c54e55948490d25d6ee8acd9a51"
+source = "git+https://github.com/ajuvercr/feignhttp#90269b5b83cd1e57c1d9d6e4f0fe3e70ca19bf20"
 dependencies = [
  "async-trait",
  "feignhttp-codegen",
@@ -378,8 +377,7 @@ dependencies = [
 [[package]]
 name = "feignhttp-codegen"
 version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3469ab79919d27b7e1fba11d5270912333c9780ce4a8dc981ad825d6690fa5f"
+source = "git+https://github.com/ajuvercr/feignhttp#90269b5b83cd1e57c1d9d6e4f0fe3e70ca19bf20"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -824,6 +822,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a60c7ce501c71e03a9c9c0d35b861413ae925bd979cc7a4e30d060069aaac8d"
 
 [[package]]
+name = "mime_guess"
+version = "2.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4192263c238a5f0d0c6bfd21f336a313a4ce1c450542449ca191bb657b4642ef"
+dependencies = [
+ "mime",
+ "unicase",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -863,6 +871,7 @@ dependencies = [
 name = "nifi-runner"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "clap",
  "feignhttp",
  "oxigraph",
@@ -871,6 +880,7 @@ dependencies = [
  "rio_turtle",
  "serde",
  "serde_json",
+ "simple-xml",
  "tokio",
 ]
 
@@ -1289,6 +1299,7 @@ dependencies = [
  "js-sys",
  "log",
  "mime",
+ "mime_guess",
  "native-tls",
  "once_cell",
  "percent-encoding",
@@ -1456,6 +1467,12 @@ name = "shlex"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43b2853a4d09f215c24cc5489c992ce46052d359b5109343cbafbf26bc62f8a3"
+
+[[package]]
+name = "simple-xml"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e73900daedd2d1f51bb648e8a7dbc44a0f062403db9671a161fd52b3a283c0ea"
 
 [[package]]
 name = "siphasher"
@@ -1699,6 +1716,15 @@ name = "typenum"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcf81ac59edc17cc8697ff311e8f5ef2d99fcbd9817b34cec66f90b6c3dfd987"
+
+[[package]]
+name = "unicase"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50f37be617794602aabbeee0be4f259dc1778fabe05e2d67ee8f79326d5cb4f6"
+dependencies = [
+ "version_check",
+]
 
 [[package]]
 name = "unicode-bidi"

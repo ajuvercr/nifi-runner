@@ -1,5 +1,10 @@
 use std::{collections::HashSet, io::Write};
 
+use crate::models::{
+    ControllerServiceDTO, DescriptorDTO, DocumentedTypeDTO, ProcessorDTO, RelationshipDTO,
+    VersionedEntity,
+};
+
 use self::prefix::Prefix;
 
 pub mod prefix {
@@ -12,6 +17,7 @@ pub mod prefix {
     pub static CONN: Prefix = ("", "https://w3id.org/conn#");
     pub static NIFI: Prefix = ("nifi", "https://w3id.org/conn/nifi#");
 }
+use prefix::*;
 
 #[derive(Default, Debug)]
 pub struct RdfContext {
@@ -37,15 +43,188 @@ pub trait ToRDF {
     fn to_rdf(self, target: &mut impl Write) -> std::io::Result<()>;
 }
 
-impl<T, I> ToRDF for &I
+impl<T> ToRDF for &Vec<T>
 where
-    Self: IntoIterator<Item = T>,
-    T: ToRDF,
+    for<'a> &'a T: ToRDF,
 {
     fn add_ctx(ctx: &mut RdfContext) {
-        T::add_ctx(ctx);
+        <&T>::add_ctx(ctx);
+    }
+
+    fn to_rdf(self, target: &mut impl Write) -> std::io::Result<()> {
+        self.into_iter().try_for_each(|x| {
+            x.to_rdf(target)?;
+            write!(target, "\n")?;
+            Ok(())
+        })
+    }
+}
+
+impl ToRDF for &DocumentedTypeDTO {
+    fn add_ctx(ctx: &mut RdfContext) {
+        ctx.add_prefix(&RDFS);
+        ctx.add_prefix(&CONN);
+    }
+
+    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
+        write!(buf, "[] a :{};\n", self.ty)?;
+        if let Some(ref desc) = self.description {
+            write!(buf, "  rdfs:description {:?};\n", desc)?;
+        }
+
+        self.tags
+            .iter()
+            .try_for_each(|x| write!(buf, "  :tag {:?};\n", x))?;
+
+        write!(buf, ".")?;
+
+        Ok(())
+    }
+}
+
+impl ToRDF for &ControllerServiceDTO {
+    fn add_ctx(ctx: &mut RdfContext) {
+        ctx.add_prefix(&CONN);
+        ctx.add_prefix(&SH);
+        ctx.add_prefix(&NIFI);
+        <&DescriptorDTO>::add_ctx(ctx);
+    }
+
+    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
+        write!(
+            buf,
+            r#"
+    <{}> a <NifiProcess>;
+      :processProperties [
+        nifi:type {:?};
+      ];
+      :shape [
+        a sh:NodeShape;
+        sh:targetClass <{}>; "#,
+            self.name, self.ty, self.name
+        )?;
+
+        self.descriptors.values().try_for_each(|x| x.to_rdf(buf))?;
+
+        write!(buf, "].",)?;
+
+        Ok(())
+    }
+}
+impl<T> ToRDF for &VersionedEntity<T>
+where
+    for<'a> &'a T: ToRDF,
+{
+    fn add_ctx(ctx: &mut RdfContext) {
+        <&T>::add_ctx(ctx);
     }
     fn to_rdf(self, target: &mut impl Write) -> std::io::Result<()> {
-        self.into_iter().try_for_each(|x| x.to_rdf(target))
+        self.component.comp.to_rdf(target)
     }
+}
+
+impl ToRDF for &ProcessorDTO {
+    fn add_ctx(ctx: &mut RdfContext) {
+        ctx.add_prefix(&NIFI);
+
+        ctx.add_prefix(&CONN);
+        ctx.add_prefix(&SH);
+        <&RelationshipDTO>::add_ctx(ctx);
+        <&DescriptorDTO>::add_ctx(ctx);
+    }
+    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
+        write!(
+            buf,
+            r#"
+    <{}> a <NifiProcess>;
+      :processProperties [
+        nifi:type {:?};
+      ];
+      :shape [
+        a sh:NodeShape;
+        sh:targetClass <{}>;
+        sh:property [
+          sh:class :ReaderChannel;
+          sh:path <INCOMING_CHANNEL>;
+          sh:name "Incoming channel";
+          sh:description "Combination of all incoming channels";
+        ];
+        "#,
+            self.name, self.ty, self.name
+        )?;
+
+        self.relationships.iter().try_for_each(|x| x.to_rdf(buf))?;
+        self.config
+            .descriptors
+            .values()
+            .try_for_each(|x| x.to_rdf(buf))?;
+
+        write!(buf, "] .")?;
+        Ok(())
+    }
+}
+impl ToRDF for &RelationshipDTO {
+    fn add_ctx(ctx: &mut RdfContext) {
+        ctx.add_prefix(&SH);
+        ctx.add_prefix(&NIFI);
+    }
+    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
+        let path = make_path_safe(&self.name);
+
+        write!(
+            buf,
+            r#" sh:property [
+          sh:class :WriterChannel;
+          sh:path <{}>;
+          nifi:key {:?};
+          sh:name {:?};   "#,
+            path, self.name, self.name
+        )?;
+
+        if let Some(ref desc) = self.description {
+            write!(buf, "  sh:description {:?};", desc)?;
+        }
+        write!(buf, "];")?;
+
+        Ok(())
+    }
+}
+impl ToRDF for &DescriptorDTO {
+    fn add_ctx(ctx: &mut RdfContext) {
+        ctx.add_prefix(&SH);
+        ctx.add_prefix(&XSD);
+    }
+    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
+        let path = make_path_safe(&self.name);
+        write!(
+            buf,
+            r#"
+    sh:property [
+          sh:datatype xsd:string;
+          sh:path <{}>;
+          sh:name {:?};
+          sh:description {:?};
+          sh:minCount {};
+          nifi:key {:?}; "#,
+            path, self.display, self.description, self.required as u32, self.name
+        )?;
+
+        if let Some(ref df) = self.default_value {
+            write!(buf, "sh:defaultValue {:?};", df)?;
+        }
+
+        write!(buf, "] ;")?;
+        Ok(())
+    }
+}
+
+fn make_path_safe(path: &str) -> String {
+    path.chars()
+        .map(|x| {
+            x.is_alphabetic()
+                .then_some(x)
+                .map(|y| y.to_ascii_lowercase())
+                .unwrap_or('-')
+        })
+        .collect()
 }

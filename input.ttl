@@ -1,0 +1,34 @@
+@base <http://example.com/ns#>.
+@prefix nifi: <https://w3id.org/conn/nifi#> .
+@prefix ws: <https://w3id.org/conn/ws#> .
+@prefix : <https://w3id.org/conn#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:NifiWriterChannel rdfs:subClassOf :WriterChannel.
+:NifiReaderChannel rdfs:subClassOf :ReaderChannel.
+
+[] a :NifiChannel;
+  :serialization :none;
+  :reader _:b3;
+  :writer _:b2.
+
+[] a :WsChannel;
+  :writer _:b1.
+
+_:b1 a :WsWriterChannel;
+  :wsUri "ws://localhost:3000".
+
+_:b4 a <LdesClient>;
+  <INCOMING_CHANNEL> _:b3;
+  <data> _:b1;  
+  <data-source-format> "n-quads";
+  <data-source-url> "https://smartdata.dev-vlaanderen.be/base/gemeente".
+
+_:b5 a <LdesClient>;
+  <data> _:b2;
+  <data> _:b1;  
+  <data-source-format> "n-quads";
+  <data-source-url> "https://smartdata.dev-vlaanderen.be/base/gemeente".
+

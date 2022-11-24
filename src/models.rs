@@ -1,16 +1,7 @@
 use std::collections::HashMap;
-use std::io::Write;
 
 use serde::Deserialize;
 use serde::Serialize;
-
-use crate::rdf::prefix::CONN;
-use crate::rdf::prefix::NIFI;
-use crate::rdf::prefix::RDFS;
-use crate::rdf::prefix::SH;
-use crate::rdf::prefix::XSD;
-use crate::rdf::RdfContext;
-use crate::rdf::ToRDF;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ControllerServiceTypesEntity {
@@ -34,28 +25,6 @@ pub struct DocumentedTypeDTO {
     pub tags: Vec<String>,
 }
 
-impl ToRDF for &DocumentedTypeDTO {
-    fn add_ctx(ctx: &mut RdfContext) {
-        ctx.add_prefix(&RDFS);
-        ctx.add_prefix(&CONN);
-    }
-
-    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
-        write!(buf, "[] a :{}; ", self.ty)?;
-        if let Some(ref desc) = self.description {
-            write!(buf, "   rdfs:description {:?};", desc)?;
-        }
-
-        self.tags
-            .iter()
-            .try_for_each(|x| write!(buf, " :tag {:?};", x))?;
-
-        write!(buf, ".")?;
-
-        Ok(())
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ControllerServiceApiDTO {
     #[serde(rename = "type")]
@@ -64,7 +33,6 @@ pub struct ControllerServiceApiDTO {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ControllerServiceDTO {
-    pub id: String,
     pub name: String,
     #[serde(rename = "type")]
     pub ty: String,
@@ -72,66 +40,42 @@ pub struct ControllerServiceDTO {
     pub descriptors: HashMap<String, DescriptorDTO>,
 }
 
-impl ToRDF for &ControllerServiceDTO {
-    fn add_ctx(ctx: &mut RdfContext) {
-        ctx.add_prefix(&CONN);
-        ctx.add_prefix(&SH);
-        ctx.add_prefix(&NIFI);
-        <&DescriptorDTO>::add_ctx(ctx);
-    }
-
-    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
-        write!(
-            buf,
-            r#"
-    <{}> a <NifiProcess>;
-      :processProperties [
-        nifi:type {:?};
-      ];
-      :shape [
-        a sh:NodeShape;
-        sh:targetClass <{}>; "#,
-            self.name, self.ty, self.name
-        )?;
-
-        self.descriptors.values().try_for_each(|x| x.to_rdf(buf))?;
-
-        write!(buf, "].",)?;
-
-        Ok(())
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VersionedEntity<Comp> {
     pub id: String,
     pub revision: RevisionDTO,
-    pub component: Comp,
+    pub component: Component<Comp>,
 }
 
-impl<T> ToRDF for &VersionedEntity<T>
-where
-    for<'a> &'a T: ToRDF,
-{
-    fn add_ctx(ctx: &mut RdfContext) {
-        <&T>::add_ctx(ctx);
-    }
-    fn to_rdf(self, target: &mut impl Write) -> std::io::Result<()> {
-        self.component.to_rdf(target)
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Component<T> {
+    pub id: String,
+    #[serde(rename = "parentGroupId")]
+    pub parent_group_id: String,
+    #[serde(flatten)]
+    pub comp: T,
 }
 
+pub type ProcessGroupEntity = VersionedEntity<ProcessGroupDTO>;
 pub type ProcessorEntity = VersionedEntity<ProcessorDTO>;
 pub type ControllerServiceEntity = VersionedEntity<ControllerServiceDTO>;
+pub type PortEntity = VersionedEntity<PortDTO>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RevisionDTO {
+    #[serde(rename = "clientId")]
+    pub client_id: Option<String>,
     pub version: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortDTO {
+    #[serde(rename = "type")]
+    ty: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProcessorDTO {
-    pub id: String,
     pub name: String,
     #[serde(rename = "type")]
     pub ty: String,
@@ -141,78 +85,10 @@ pub struct ProcessorDTO {
     pub config: ProcessorConfigDTO,
 }
 
-impl ToRDF for &ProcessorDTO {
-    fn add_ctx(ctx: &mut RdfContext) {
-        ctx.add_prefix(&NIFI);
-
-        ctx.add_prefix(&CONN);
-        ctx.add_prefix(&SH);
-        <&RelationshipDTO>::add_ctx(ctx);
-        <&DescriptorDTO>::add_ctx(ctx);
-    }
-    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
-        write!(
-            buf,
-            r#"
-    <{}> a <NifiProcess>;
-      :processProperties [
-        nifi:type {:?};
-      ];
-      :shape [
-        a sh:NodeShape;
-        sh:targetClass <{}>;
-        sh:property [
-          sh:class :ReaderChannel;
-          sh:path <INCOMING_CHANNEL>;
-          sh:name "Incoming channel";
-          sh:description "Combination of all incoming channels";
-        ];
-        "#,
-            self.name, self.ty, self.name
-        )?;
-
-        self.relationships.iter().try_for_each(|x| x.to_rdf(buf))?;
-        self.config
-            .descriptors
-            .values()
-            .try_for_each(|x| x.to_rdf(buf))?;
-
-        write!(buf, "] .")?;
-        Ok(())
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RelationshipDTO {
     pub name: String,
     pub description: Option<String>,
-}
-
-impl ToRDF for &RelationshipDTO {
-    fn add_ctx(ctx: &mut RdfContext) {
-        ctx.add_prefix(&SH);
-        ctx.add_prefix(&NIFI);
-    }
-    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
-        let path = make_path_safe(&self.name);
-
-        write!(
-            buf,
-            r#" sh:property [
-          sh:class :WriterChannel;
-          sh:path <{}>;
-          nifi:key {:?};
-          sh:name {:?};   "#,
-            path, self.name, self.name
-        )?;
-
-        if let Some(ref desc) = self.description {
-            write!(buf, "  sh:description {:?};", desc)?;
-        }
-        write!(buf, "];")?;
-
-        Ok(())
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -231,45 +107,6 @@ pub struct DescriptorDTO {
     pub default_value: Option<String>,
     pub required: bool,
 }
-fn make_path_safe(path: &str) -> String {
-    path.chars()
-        .map(|x| {
-            x.is_alphabetic()
-                .then_some(x)
-                .map(|y| y.to_ascii_lowercase())
-                .unwrap_or('-')
-        })
-        .collect()
-}
-
-impl ToRDF for &DescriptorDTO {
-    fn add_ctx(ctx: &mut RdfContext) {
-        ctx.add_prefix(&SH);
-        ctx.add_prefix(&XSD);
-    }
-    fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
-        let path = make_path_safe(&self.name);
-        write!(
-            buf,
-            r#"
-    sh:property [
-          sh:datatype xsd:string;
-          sh:path <{}>;
-          sh:name {:?};
-          sh:description {:?};
-          sh:minCount {};
-          nifi:key {:?}; "#,
-            path, self.display, self.description, self.required as u32, self.name
-        )?;
-
-        if let Some(ref df) = self.default_value {
-            write!(buf, "sh:defaultValue {:?};", df)?;
-        }
-
-        write!(buf, "] ;")?;
-        Ok(())
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -277,23 +114,24 @@ pub struct ConnectionEntity {
     id: Option<String>,
     revision: RevisionDTO,
     component: ConnectionDTO,
-    source_id: String,
-    source_type: ConnectionTargetType,
-    destination_id: String,
-    destination_type: ConnectionTargetType,
 }
+
 impl ConnectionEntity {
-    pub fn new(source_id: &str, target_id: &str, rel: &str) -> Self {
-        let rels = vec![rel.to_string()];
+    pub fn new<I, O>(input: &Component<I>, output: &Component<O>, rel: Option<&str>) -> Self
+    where
+        for<'a> &'a I: Into<ConnectionTargetType>,
+        for<'a> &'a O: Into<ConnectionTargetType>,
+    {
+        let rels = rel.map(|x| vec![x.to_string()]).unwrap_or_default();
         let source = ConnectableDTO {
-            id: source_id.to_string(),
-            ty: ConnectionTargetType::Processor,
-            group_id: "root".to_string(),
+            id: input.id.to_string(),
+            ty: (&input.comp).into(),
+            group_id: input.parent_group_id.to_string(),
         };
         let destination = ConnectableDTO {
-            id: target_id.to_string(),
-            ty: ConnectionTargetType::Processor,
-            group_id: "root".to_string(),
+            id: output.id.to_string(),
+            ty: (&output.comp).into(),
+            group_id: output.parent_group_id.to_string(),
         };
         let component = ConnectionDTO {
             source,
@@ -304,12 +142,11 @@ impl ConnectionEntity {
 
         Self {
             id: None,
-            revision: RevisionDTO { version: 0 },
+            revision: RevisionDTO {
+                client_id: None,
+                version: 0,
+            },
             component,
-            source_id: source_id.to_string(),
-            source_type: ConnectionTargetType::Processor,
-            destination_id: target_id.to_string(),
-            destination_type: ConnectionTargetType::Processor,
         }
     }
 }
@@ -323,6 +160,22 @@ pub enum ConnectionTargetType {
     InputPort,
     OutputPort,
     Funnel,
+}
+
+impl<'a> From<&'a PortDTO> for ConnectionTargetType {
+    fn from(this: &'a PortDTO) -> Self {
+        match this.ty.as_str() {
+            "INPUT_PORT" => ConnectionTargetType::InputPort,
+            "OUTPUT_PORT" => ConnectionTargetType::OutputPort,
+            _ => panic!(),
+        }
+    }
+}
+
+impl<'a> From<&'a ProcessorDTO> for ConnectionTargetType {
+    fn from(_: &'a ProcessorDTO) -> Self {
+        Self::Processor
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -341,4 +194,57 @@ pub struct ConnectableDTO {
     #[serde(rename = "type")]
     ty: ConnectionTargetType,
     group_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProcessGroupDTO {
+    name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PortsEntity {
+    #[serde(alias = "inputPorts")]
+    #[serde(alias = "outputPorts")]
+    pub ports: Vec<PortEntity>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Flow {
+    pub process_groups: Vec<ProcessGroupEntity>,
+    pub processors: Vec<ProcessorEntity>,
+    pub input_ports: Vec<PortEntity>,
+    pub output_ports: Vec<PortEntity>,
+    pub connections: Vec<ConnectionEntity>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlowEntity {
+    pub flow: Flow,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VariableRegistryEntity {
+    #[serde(rename = "processGroupRevision")]
+    pub revision: RevisionDTO,
+    #[serde(rename = "variableRegistry")]
+    pub variable_registry: VariableRegistry,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VariableRegistry {
+    #[serde(rename = "processGroupId")]
+    pub group: String,
+    pub variables: Vec<VariableDTO>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VariableDTO {
+    pub variable: Variable,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Variable {
+    pub name: String,
+    pub value: String,
 }

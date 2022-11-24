@@ -1,4 +1,6 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+
+use crate::client::Nifi;
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
 pub enum Output {
@@ -25,6 +27,8 @@ pub struct RunArgs {
 pub struct Args {
     #[command(flatten)]
     pub run: RunArgs,
+    #[command(flatten)]
+    pub client: Nifi,
     #[command(subcommand)]
     pub action: Action,
 }
@@ -32,7 +36,7 @@ pub struct Args {
 #[derive(clap::Subcommand, Debug)]
 pub enum Action {
     Run {
-        #[arg(short, long, default_value_t = String::from("./test.ttl"))]
+        #[arg(short, long, default_value_t = String::from("./ontology.ttl"))]
         ontology: String,
         input: Option<String>,
     },
@@ -43,6 +47,23 @@ pub enum Action {
         #[command(subcommand)]
         action: ListAction,
     },
+    /// Create things
+    Create {
+        #[command(subcommand)]
+        action: CreateAction,
+    },
+}
+
+#[derive(clap::Subcommand, Debug)]
+pub enum CreateAction {
+    Group { name: String },
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum Actives {
+    Processor,
+    Service,
+    Group,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -65,6 +86,9 @@ pub enum ListAction {
     Service {
         #[arg(default_value_t = String::from("org.apache.nifi.websocket.jetty.JettyWebSocketClient"))]
         ty: String,
+    },
+    Active {
+        ty: Actives,
     },
 }
 
