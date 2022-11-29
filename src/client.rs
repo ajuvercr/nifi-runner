@@ -269,6 +269,7 @@ impl Nifi {
     }
 
     async fn wait_for_service(&self, service: &str) -> feignhttp::Result<()> {
+        let mut count = 0;
         loop {
             let s = match self.get_service(service).await {
                 Ok(x) => x,
@@ -280,6 +281,11 @@ impl Nifi {
 
             match s.status.status {
                 ServiceRunStatus::Enabling => {
+                    if count > 10 {
+                        eprintln!("Service didn't start in 5 seconds, continuing");
+                        return Ok(());
+                    }
+                    count += 1;
                     println!("Retrying in 500 ms");
                     tokio::time::sleep(Duration::from_millis(500)).await
                 }

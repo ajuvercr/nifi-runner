@@ -32,6 +32,7 @@ pub async fn add_channel_writer(
     client: &crate::client::Nifi,
     store: &oxigraph::store::Store,
     procs: &HashMap<String, Component<ProcessorDTO>>,
+    start: bool,
 ) {
     let mut templates: HashMap<String, String> = HashMap::new();
     let mut ports: HashMap<String, Component<PortDTO>> = HashMap::new();
@@ -58,9 +59,11 @@ pub async fn add_channel_writer(
         client.delete_template(&v).await.unwrap();
     }
 
-    for client in clients {
-        if let Err(e) = client.start_process_group().await {
-            eprintln!("Failed to start process group\n{:?}", e);
+    if start {
+        for client in clients {
+            if let Err(e) = client.start_process_group().await {
+                eprintln!("Failed to start process group\n{:?}", e);
+            }
         }
     }
 }

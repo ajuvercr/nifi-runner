@@ -15,7 +15,7 @@ use crate::models::{Component, ConnectionEntity, ProcessorDTO};
 
 pub const ID_TERM: &str = "http://example.com/ns#testing+id";
 
-pub async fn startup(client: Nifi, ontology: String, input: Option<String>) {
+pub async fn startup(client: Nifi, ontology: String, input: Option<String>, start: bool) {
     let store = Store::new().unwrap();
 
     if let Some(input) = input {
@@ -45,12 +45,14 @@ pub async fn startup(client: Nifi, ontology: String, input: Option<String>) {
         add_nifi_link(&client, link, &create_processors).await;
     }
 
-    add_channel_writer(&client, &store, &create_processors).await;
-    add_channel_reader(&client, &store, &create_processors).await;
+    add_channel_writer(&client, &store, &create_processors, start).await;
+    add_channel_reader(&client, &store, &create_processors, start).await;
 
-    for proc in create_processors.into_values() {
-        if let Err(e) = client.start_processor(&proc.id).await {
-            println!("Start processor failed\n{:?}", e);
+    if start {
+        for proc in create_processors.into_values() {
+            if let Err(e) = client.start_processor(&proc.id).await {
+                println!("Start processor failed\n{:?}", e);
+            }
         }
     }
 }

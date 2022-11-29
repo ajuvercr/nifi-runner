@@ -38,6 +38,8 @@ pub enum Action {
     Run {
         #[arg(short, long, default_value_t = String::from("./ontology.ttl"))]
         ontology: String,
+        #[arg(short, long)]
+        no_start: bool,
         input: Option<String>,
     },
     /// Get information about the current nifi instance

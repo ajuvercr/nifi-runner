@@ -138,8 +138,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     match args.action {
-        app::Action::Run { ontology, input } => {
-            logic::startup(args.client, ontology, input).await;
+        app::Action::Run {
+            ontology,
+            input,
+            no_start,
+        } => {
+            logic::startup(args.client, ontology, input, !no_start).await;
         }
         app::Action::Info => {
             print_result(args.client.get_info().await)?;
