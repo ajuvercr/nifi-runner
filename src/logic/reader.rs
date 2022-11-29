@@ -12,23 +12,22 @@ use crate::{
     logic::template_file_id,
     models::{Component, ConnectionEntity, PortDTO, ProcessorDTO},
     sparql::{
-        execute_query, get_parameter_solutions, NifiLinkQueryOutput, QueryField, QueryString,
-        Queryable, Sol, WithSubject,
+        execute_query, get_parameter_solutions, NifiLinkQueryOutput, QueryField, Queryable, Sol,
+        WithSubject,
     },
 };
 
-static WRITERS: &[(&'static str, &'static str)] = &[(
-    "https://w3id.org/conn#WsWriterChannel",
-    "./channels/WSWriter.xml",
-)];
-
 const WS_ONTOLOGY: &'static str = "./channels/ws_ontology.ttl";
+static READERS: &[(&'static str, &'static str)] = &[(
+    "https://w3id.org/conn#WsReaderChannel",
+    "./channels/WSReader.xml",
+)];
 
 pub fn append_ontology(store: &oxigraph::store::Store) -> std::io::Result<()> {
     import_file_to_store(WS_ONTOLOGY, store)
 }
 
-pub async fn add_channel_writer(
+pub async fn add_channel_reader(
     client: &crate::client::Nifi,
     store: &oxigraph::store::Store,
     procs: &HashMap<String, Component<ProcessorDTO>>,
@@ -36,26 +35,28 @@ pub async fn add_channel_writer(
     let mut templates: HashMap<String, String> = HashMap::new();
     let mut ports: HashMap<String, Component<PortDTO>> = HashMap::new();
 
-    let sols = get_parameter_solutions::<WriterQuery>(&store);
+    let sols = get_parameter_solutions::<ReaderQuery>(&store);
     let mut clients = Vec::new();
 
     for sol in sols.into_values() {
-        println!("Creating writer");
-
-        if let Some(client) = create_writer(client, store, sol, &mut templates, &mut ports).await {
+        if let Some(client) = create_reader(client, store, sol, &mut templates, &mut ports).await {
             clients.push(client);
         } else {
-            eprintln!("Failed to add writer!");
+            eprintln!("Failed to add reader");
         }
     }
 
-    let links = execute_query::<WriterLink>(store);
+    let links = execute_query::<ReaderLink>(store);
     for link in links {
-        add_link(&client, link, &ports, procs).await;
+        if add_link(&client, link, &ports, procs).await.is_none() {
+            eprintln!("Failed to add link");
+        }
     }
 
     for v in templates.into_values() {
-        client.delete_template(&v).await.unwrap();
+        if let Err(e) = client.delete_template(&v).await {
+            eprintln!("Failed to delete template {:?}", e.error_kind());
+        }
     }
 
     for client in clients {
@@ -65,38 +66,49 @@ pub async fn add_channel_writer(
     }
 }
 
-async fn create_writer(
+async fn create_reader(
     client: &Nifi,
     store: &Store,
     sol: Vec<QuerySolutionOutput>,
     templates: &mut HashMap<String, String>,
     port_map: &mut HashMap<String, Component<PortDTO>>,
 ) -> Option<Nifi> {
-    let writer_type = match &sol[0].writer_type.0 {
+    println!("Creating reader");
+    let reader_type = match &sol[0].reader_type.0 {
         Term::NamedNode(n) => n.as_str(),
-        _ => return None,
+        _ => {
+            println!("expected named node");
+            return None;
+        }
     };
 
-    if !templates.contains_key(writer_type) {
+    if !templates.contains_key(reader_type) {
         println!("Uploading new template");
-        let location = WRITERS.iter().find(|x| x.0 == writer_type).map(|x| x.1)?;
+        let location = READERS.iter().find(|x| x.0 == reader_type).map(|x| x.1)?;
 
         let template_id = template_file_id(client, location).await?;
 
-        templates.insert(writer_type.to_string(), template_id);
+        templates.insert(reader_type.to_string(), template_id);
     }
 
-    println!("Creating writer");
-    let template_id = templates.get(writer_type).unwrap();
+    let template_id = templates.get(reader_type).unwrap();
+    println!("Found template");
 
-    let flow = client.instantiate_template(template_id).await.ok()?;
+    let flow = match client.instantiate_template(template_id).await {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("Failed to instantiate template\n{:?}", e);
+            return None;
+        }
+    };
 
     let group_client = client.change_group(&flow.flow.process_groups[0].id);
-    let ports = group_client.get_ports(PortType::Input).await.ok()?.ports;
-    let input_port = ports.get(0)?;
-    port_map.insert(input_port.id.clone(), input_port.component.clone());
 
-    let v = Literal::new_simple_literal(&input_port.id);
+    let ports = group_client.get_ports(PortType::Output).await.ok()?.ports;
+    let output_port = ports.get(0)?;
+    port_map.insert(output_port.id.clone(), output_port.component.clone());
+
+    let v = Literal::new_simple_literal(&output_port.id);
     store
         .insert(QuadRef {
             subject: as_subject_ref(sol[0].subject.0.as_ref()),
@@ -107,27 +119,26 @@ async fn create_writer(
         .unwrap();
 
     let vars = sol.into_iter().map(|sol| (sol.nifi_key.0, sol.value.0));
-
     group_client.set_variables(vars).await.ok()?;
 
     Some(group_client)
 }
 
-async fn add_link<'a>(
-    client: &'a Nifi,
+async fn add_link(
+    client: &Nifi,
     NifiLinkQueryOutput {
         source_id,
         target_id,
-        key,
-    }: NifiLinkQueryOutput<QueryString<"key">>,
-    ports: &'a HashMap<String, Component<PortDTO>>,
-    procs: &'a HashMap<String, Component<ProcessorDTO>>,
+        ..
+    }: NifiLinkQueryOutput<()>,
+    ports: &HashMap<String, Component<PortDTO>>,
+    procs: &HashMap<String, Component<ProcessorDTO>>,
 ) -> Option<()> {
-    println!("adding link to writer");
-    let source = procs.get(source_id.deref())?;
-    let target = ports.get(target_id.deref())?;
+    println!("adding link to reader");
+    let source = ports.get(source_id.deref())?;
+    let target = procs.get(target_id.deref())?;
 
-    let body = ConnectionEntity::new(&source, &target, Some(&key));
+    let body = ConnectionEntity::new(&source, &target, None);
 
     client
         .create_conection(body)
@@ -140,9 +151,10 @@ async fn add_link<'a>(
 #[derive(Clone, Debug, Query)]
 struct QuerySolutionOutput {
     pub subject: QueryField<Term, "subject">,
+
     pub nifi_key: QueryField<String, "nifi_key">,
     pub value: QueryField<String, "value">,
-    pub writer_type: QueryField<Term, "writer_type">,
+    pub reader_type: QueryField<Term, "reader_type">,
 }
 
 impl WithSubject for QuerySolutionOutput {
@@ -151,10 +163,11 @@ impl WithSubject for QuerySolutionOutput {
     }
 }
 
-struct WriterQuery;
-impl Queryable for WriterQuery {
+struct ReaderQuery;
+
+impl Queryable for ReaderQuery {
     type Output = QuerySolutionOutput;
-    const ERROR: &'static str = "WS Writer query";
+    const ERROR: &'static str = "WS Reader query";
 
     const QUERY: &'static str = r#"
 BASE <http://example.com/ns#>
@@ -162,35 +175,34 @@ PREFIX nifi: <https://w3id.org/conn/nifi#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX : <https://w3id.org/conn#> 
                 
-SELECT DISTINCT ?writer_type ?subject ?nifi_key ?value WHERE {
+SELECT DISTINCT ?reader_type ?subject ?nifi_key ?value WHERE {
     ?sourceTy a <NifiProcess>;
       :shape [
         sh:property [
-          sh:class :WriterChannel;
+          sh:class :ReaderChannel;
           sh:path ?sourcePath;
-          nifi:key ?writerKey;
         ]
       ].
 
      _:source a ?sourceTy;
          ?sourcePath ?subject.
 
-    ?writer_type :shape [
+    ?reader_type :shape [
       sh:property [
         sh:path ?p;
         nifi:key ?nifi_key;
       ]
     ].
 
-    ?subject a ?writer_type;
+    ?subject a ?reader_type;
       ?p ?value.
 }
 "#;
 }
 
-struct WriterLink;
-impl Queryable for WriterLink {
-    const ERROR: &'static str = "WS writer link";
+struct ReaderLink;
+impl Queryable for ReaderLink {
+    const ERROR: &'static str = "WS reader link";
 
     const QUERY: &'static str = r#"
 BASE <http://example.com/ns#>
@@ -202,19 +214,18 @@ SELECT * {
     ?sourceTy a <NifiProcess>;
       :shape [
         sh:property [
-          sh:class :WriterChannel;
+          sh:class :ReaderChannel;
           sh:path ?sourcePath;
-          nifi:key ?key;
         ]
       ].
     
      _:source a ?sourceTy;
-       <http://example.com/ns#testing+id> ?source_id;
+       <http://example.com/ns#testing+id> ?target_id;
        ?sourcePath ?subject.
 
-    ?subject <http://example.com/ns#testing+id> ?target_id.
+    ?subject <http://example.com/ns#testing+id> ?source_id.
 }
 "#;
 
-    type Output = NifiLinkQueryOutput<QueryString<"key">>;
+    type Output = NifiLinkQueryOutput<()>;
 }

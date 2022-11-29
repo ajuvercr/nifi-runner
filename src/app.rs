@@ -48,15 +48,7 @@ pub enum Action {
         action: ListAction,
     },
     /// Create things
-    Create {
-        #[command(subcommand)]
-        action: CreateAction,
-    },
-}
-
-#[derive(clap::Subcommand, Debug)]
-pub enum CreateAction {
-    Group { name: String },
+    Testing,
 }
 
 #[derive(Clone, Debug, ValueEnum)]

@@ -15,20 +15,24 @@
   :writer _:b2.
 
 [] a :WsChannel;
-  :writer _:b1.
+  :writer _:b1;
+  :reader _:wsReader.
+
+_:wsReader a :WsReaderChannel;
+  :wsPort "8123".
 
 _:b1 a :WsWriterChannel;
   :wsUri "ws://localhost:3000".
 
 _:b4 a <LdesClient>;
-  <INCOMING_CHANNEL> _:b3;
+  <INCOMING_CHANNEL> _:wsReader;
   <data> _:b1;  
   <data-source-format> "n-quads";
   <data-source-url> "https://smartdata.dev-vlaanderen.be/base/gemeente".
 
-_:b5 a <LdesClient>;
-  <data> _:b2;
-  <data> _:b1;  
-  <data-source-format> "n-quads";
-  <data-source-url> "https://smartdata.dev-vlaanderen.be/base/gemeente".
+# _:b5 a <LdesClient>;
+#  <data> _:b2;
+#  <data> _:b1;  
+#  <data-source-format> "n-quads";
+#  <data-source-url> "https://smartdata.dev-vlaanderen.be/base/gemeente".
 

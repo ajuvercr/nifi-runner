@@ -111,7 +111,7 @@ impl ToRDF for &ControllerServiceDTO {
         Ok(())
     }
 }
-impl<T> ToRDF for &VersionedEntity<T>
+impl<T, S> ToRDF for &VersionedEntity<T, S>
 where
     for<'a> &'a T: ToRDF,
 {

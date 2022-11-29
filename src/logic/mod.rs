@@ -12,8 +12,14 @@ use rio_api::parser::TriplesParser;
 use rio_turtle::{TurtleError, TurtleParser};
 
 mod logic;
+mod reader;
 mod writer;
 pub use logic::*;
+
+async fn template_file_id(client: &Nifi, location: &str) -> Option<String> {
+    let content = std::fs::read_to_string(location).ok()?;
+    client.upload_template(content).await.ok()
+}
 
 pub fn import_reader_to_store<R: BufRead + Sized>(file: R, bl: &Store) -> std::io::Result<()> {
     let parser = TurtleParser::new(file, None);

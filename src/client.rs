@@ -1,10 +1,13 @@
+use std::time::Duration;
+
 use feignhttp::{feign, Feign};
 use serde_json::Value;
 
 use crate::models::{
-    ConnectionEntity, ControllerServiceEntity, ControllerServiceTypesEntity, FlowEntity,
-    PortEntity, PortsEntity, ProcessGroupEntity, ProcessTypesEntity, ProcessorEntity, Variable,
-    VariableDTO, VariableRegistryEntity,
+    ConnectionEntity, ControllerServiceEntity, ControllerServiceTypesEntity,
+    ControllerServicesEntity, FlowEntity, PortEntity, PortsEntity, ProcessGroupEntity,
+    ProcessTypesEntity, ProcessorEntity, ServiceRunStatus, Variable, VariableDTO,
+    VariableRegistryEntity,
 };
 
 const NIFI_URL: &str = "http://localhost:8091/nifi-api";
@@ -49,22 +52,41 @@ impl Nifi {
     pub async fn list_types(&self) -> feignhttp::Result<ProcessTypesEntity> {}
 
     #[get("/flow/controller-service-types")]
-    pub async fn list_services(&self) -> feignhttp::Result<ControllerServiceTypesEntity> {}
+    pub async fn list_services_types(&self) -> feignhttp::Result<ControllerServiceTypesEntity> {}
 
     #[get("/process-groups/{group}")]
     pub async fn get_process_group(&self) -> feignhttp::Result<ProcessGroupEntity> {}
 
-    #[get("/flow/process-groups/{group}/controller-services")]
-    pub async fn list_active_services(&self) -> feignhttp::Result<Value> {}
-
     #[get("/process-groups/{group}/processors")]
     pub async fn list_active_processors(&self) -> feignhttp::Result<Value> {}
+
+    #[get("/flow/process-groups/{group}/controller-services")]
+    pub async fn list_services(
+        &self,
+        #[header(includeAncestorGroups)] ancestors: bool,
+    ) -> feignhttp::Result<ControllerServicesEntity> {
+    }
 
     #[post("/process-groups/{group}/controller-services")]
     pub async fn create_service(
         &self,
         #[body] body: Value,
     ) -> feignhttp::Result<ControllerServiceEntity> {
+    }
+
+    #[get("/controller-services/{service}")]
+    pub async fn get_service(
+        &self,
+        #[path] service: &str,
+    ) -> feignhttp::Result<ControllerServiceEntity> {
+    }
+
+    #[put("/controller-services/{service}/run-status")]
+    pub async fn update_service_run_status(
+        &self,
+        #[path] service: &str,
+        #[body] body: Value,
+    ) -> feignhttp::Result<Value> {
     }
 
     #[post("/process-groups/{group}/processors")]
@@ -80,6 +102,9 @@ impl Nifi {
         #[body] body: Value,
     ) -> feignhttp::Result<ProcessGroupEntity> {
     }
+
+    #[put("/flow/process-groups/{group}")]
+    pub async fn update_process_group(&self, #[body] body: Value) -> feignhttp::Result<Value> {}
 
     #[get("/process-groups/{group}/variable-registry")]
     pub async fn get_variables(&self) -> feignhttp::Result<VariableRegistryEntity> {}
@@ -116,11 +141,22 @@ impl Nifi {
     ) -> feignhttp::Result<PortEntity> {
     }
 
+    #[get("/processors/{id}")]
+    pub async fn get_processor(&self, #[path] id: &str) -> feignhttp::Result<ProcessorEntity> {}
+
     #[put("/processors/{id}")]
-    pub async fn update_prcocessor(
+    pub async fn update_processor(
         &self,
         #[path] id: &str,
         #[body] body: &ProcessorEntity,
+    ) -> feignhttp::Result<ProcessorEntity> {
+    }
+
+    #[put("/processors/{id}/run-status")]
+    pub async fn update_process_run_status(
+        &self,
+        #[path] id: &str,
+        #[body] body: Value,
     ) -> feignhttp::Result<ProcessorEntity> {
     }
 
@@ -230,5 +266,78 @@ impl Nifi {
         self.delete_template(&id).await?;
 
         Ok(created)
+    }
+
+    async fn wait_for_service(&self, service: &str) -> feignhttp::Result<()> {
+        loop {
+            let s = match self.get_service(service).await {
+                Ok(x) => x,
+                Err(e) => {
+                    println!("Get service failed\n{:?}", e);
+                    return Err(e);
+                }
+            };
+
+            match s.status.status {
+                ServiceRunStatus::Enabling => {
+                    println!("Retrying in 500 ms");
+                    tokio::time::sleep(Duration::from_millis(500)).await
+                }
+                _ => {
+                    if s.status.status != ServiceRunStatus::Enabled {
+                        eprintln!("Expected service to be enabled, not {:?}", s.status.status);
+                    }
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    pub async fn start_process_group(&self) -> feignhttp::Result<()> {
+        let services = self.list_services(false).await?;
+        println!(
+            "Starting process group services ({})",
+            services.services.len()
+        );
+
+        for service in services.services {
+            let id = service.id;
+            let rev = service.revision;
+
+            let body = serde_json::json!({
+                "revision": rev,
+                "state": "ENABLED",
+            });
+
+            self.update_service_run_status(&id, body).await?;
+
+            // Wait for the service to be actually running
+            self.wait_for_service(&id).await?;
+        }
+
+        println!("Starting other components");
+        let id = &self.group;
+        let body = serde_json::json!({
+            "id": id,
+            "state": "RUNNING",
+        });
+
+        self.update_process_group(body).await?;
+
+        Ok(())
+    }
+    pub async fn start_processor(&self, id: &str) -> feignhttp::Result<()> {
+        let proc = self.get_processor(id).await?;
+
+        let rev = proc.revision;
+
+        let body = serde_json::json!({
+            "revision": rev,
+            "state": "RUNNING",
+        });
+
+        self.update_process_run_status(id, body).await?;
+
+        Ok(())
     }
 }

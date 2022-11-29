@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<template encoding-version="1.3">
+    <description></description>
+    <groupId>2269e8b8-0183-1000-3fa2-6132dcfb0589</groupId>
+    <name>WsReader</name>
+    <snippet>
+        <processGroups>
+            <id>367b9c49-71a1-36ea-0000-000000000000</id>
+            <parentGroupId>9036683b-b726-3b87-0000-000000000000</parentGroupId>
+            <position>
+                <x>0.0</x>
+                <y>0.0</y>
+            </position>
+            <comments></comments>
+            <contents>
+                <connections>
+                    <id>6fdc370e-3d44-30fb-0000-000000000000</id>
+                    <parentGroupId>367b9c49-71a1-36ea-0000-000000000000</parentGroupId>
+                    <backPressureDataSizeThreshold>1 GB</backPressureDataSizeThreshold>
+                    <backPressureObjectThreshold>10000</backPressureObjectThreshold>
+                    <destination>
+                        <groupId>367b9c49-71a1-36ea-0000-000000000000</groupId>
+                        <id>5e9ab3fe-de76-38fc-0000-000000000000</id>
+                        <type>OUTPUT_PORT</type>
+                    </destination>
+                    <flowFileExpiration>0 sec</flowFileExpiration>
+                    <labelIndex>1</labelIndex>
+                    <loadBalanceCompression>DO_NOT_COMPRESS</loadBalanceCompression>
+                    <loadBalancePartitionAttribute></loadBalancePartitionAttribute>
+                    <loadBalanceStatus>LOAD_BALANCE_NOT_CONFIGURED</loadBalanceStatus>
+                    <loadBalanceStrategy>DO_NOT_LOAD_BALANCE</loadBalanceStrategy>
+                    <name></name>
+                    <selectedRelationships>binary message</selectedRelationships>
+                    <selectedRelationships>text message</selectedRelationships>
+                    <source>
+                        <groupId>367b9c49-71a1-36ea-0000-000000000000</groupId>
+                        <id>c24938f8-b58d-354c-0000-000000000000</id>
+                        <type>PROCESSOR</type>
+                    </source>
+                    <zIndex>0</zIndex>
+                </connections>
+                <controllerServices>
+                    <id>352c34d0-c830-3a5a-0000-000000000000</id>
+                    <parentGroupId>367b9c49-71a1-36ea-0000-000000000000</parentGroupId>
+                    <bulletinLevel>WARN</bulletinLevel>
+                    <bundle>
+                        <artifact>nifi-websocket-services-jetty-nar</artifact>
+                        <group>org.apache.nifi</group>
+                        <version>1.17.0</version>
+                    </bundle>
+                    <comments></comments>
+                    <descriptors>
+                        <entry>
+                            <key>input-buffer-size</key>
+                            <value>
+<name>input-buffer-size</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>max-text-message-size</key>
+                            <value>
+<name>max-text-message-size</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>max-binary-message-size</key>
+                            <value>
+<name>max-binary-message-size</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>listen-port</key>
+                            <value>
+<name>listen-port</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>ssl-context-service</key>
+                            <value>
+<identifiesControllerService>org.apache.nifi.ssl.RestrictedSSLContextService</identifiesControllerService>
+<name>ssl-context-service</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>client-authentication</key>
+                            <value>
+<name>client-authentication</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>basic-auth</key>
+                            <value>
+<name>basic-auth</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>auth-path-spec</key>
+                            <value>
+<name>auth-path-spec</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>auth-roles</key>
+                            <value>
+<name>auth-roles</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>login-service</key>
+                            <value>
+<name>login-service</name>
+                            </value>
+                        </entry>
+                        <entry>
+                            <key>users-properties-file</key>
+                            <value>
+<name>users-properties-file</name>
+                            </value>
+                        </entry>
+                    </descriptors>
+                    <name>JettyWebSocketServer</name>
+                    <persistsState>false</persistsState>
+                    <properties>
+                        <entry>
+                            <key>input-buffer-size</key>
+                            <value>4 kb</value>
+                        </entry>
+                        <entry>
+                            <key>max-text-message-size</key>
+                            <value>64 kb</value>
+                        </entry>
+                        <entry>
+                            <key>max-binary-message-size</key>
+                            <value>64 kb</value>
+                        </entry>
+                        <entry>
+                            <key>listen-port</key>
+                            <value>${wsPort}</value>
+                        </entry>
+                        <entry>
+                            <key>ssl-context-service</key>
+                        </entry>
+                        <entry>
+                            <key>client-authentication</key>
+                            <value>no</value>
+                        </entry>
+                        <entry>
+                            <key>basic-auth</key>
+                            <value>false</value>
+                        </entry>
+                        <entry>
+                            <key>auth-path-spec</key>
+                            <value>/*</value>
+                        </entry>
+                        <entry>
+                            <key>auth-roles</key>
+                            <value>**</value>
+                        </entry>
+                        <entry>
+                            <key>login-service</key>
+                            <value>hash</value>
+                        </entry>
+                        <entry>
+                            <key>users-properties-file</key>
+                        </entry>
+                    </properties>
+                    <state>DISABLED</state>
+                    <type>org.apache.nifi.websocket.jetty.JettyWebSocketServer</type>
+                </controllerServices>
+                <outputPorts>
+                    <id>5e9ab3fe-de76-38fc-0000-000000000000</id>
+                    <parentGroupId>367b9c49-71a1-36ea-0000-000000000000</parentGroupId>
+                    <position>
+                        <x>-1203.7071135755155</x>
+                        <y>-384.02510100033624</y>
+                    </position>
+                    <concurrentlySchedulableTaskCount>1</concurrentlySchedulableTaskCount>
+                    <name>toRoot</name>
+                    <state>STOPPED</state>
+                    <type>OUTPUT_PORT</type>
+                    <validationErrors>'Port 'toRoot'' is invalid because Port has no outgoing connections</validationErrors>
+                </outputPorts>
+                <processors>
+                    <id>c24938f8-b58d-354c-0000-000000000000</id>
+                    <parentGroupId>367b9c49-71a1-36ea-0000-000000000000</parentGroupId>
+                    <position>
+                        <x>-1872.0</x>
+                        <y>-424.0</y>
+                    </position>
+                    <bundle>
+                        <artifact>nifi-websocket-processors-nar</artifact>
+                        <group>org.apache.nifi</group>
+                        <version>1.17.0</version>
+                    </bundle>
+                    <config>
+                        <backoffMechanism>PENALIZE_FLOWFILE</backoffMechanism>
+                        <bulletinLevel>WARN</bulletinLevel>
+                        <comments></comments>
+                        <concurrentlySchedulableTaskCount>1</concurrentlySchedulableTaskCount>
+                        <descriptors>
+                            <entry>
+<key>websocket-server-controller-service</key>
+<value>
+    <identifiesControllerService>org.apache.nifi.websocket.WebSocketServerService</identifiesControllerService>
+    <name>websocket-server-controller-service</name>
+</value>
+                            </entry>
+                            <entry>
+<key>server-url-path</key>
+<value>
+    <name>server-url-path</name>
+</value>
+                            </entry>
+                        </descriptors>
+                        <executionNode>ALL</executionNode>
+                        <lossTolerant>false</lossTolerant>
+                        <maxBackoffPeriod>10 mins</maxBackoffPeriod>
+                        <penaltyDuration>30 sec</penaltyDuration>
+                        <properties>
+                            <entry>
+<key>websocket-server-controller-service</key>
+<value>352c34d0-c830-3a5a-0000-000000000000</value>
+                            </entry>
+                            <entry>
+<key>server-url-path</key>
+<value>/</value>
+                            </entry>
+                        </properties>
+                        <retryCount>10</retryCount>
+                        <runDurationMillis>0</runDurationMillis>
+                        <schedulingPeriod>0 sec</schedulingPeriod>
+                        <schedulingStrategy>TIMER_DRIVEN</schedulingStrategy>
+                        <yieldDuration>1 sec</yieldDuration>
+                    </config>
+                    <executionNodeRestricted>false</executionNodeRestricted>
+                    <name>ListenWebSocket</name>
+                    <relationships>
+                        <autoTerminate>false</autoTerminate>
+                        <name>binary message</name>
+                        <retry>false</retry>
+                    </relationships>
+                    <relationships>
+                        <autoTerminate>true</autoTerminate>
+                        <name>connected</name>
+                        <retry>false</retry>
+                    </relationships>
+                    <relationships>
+                        <autoTerminate>false</autoTerminate>
+                        <name>text message</name>
+                        <retry>false</retry>
+                    </relationships>
+                    <state>STOPPED</state>
+                    <style/>
+                    <type>org.apache.nifi.processors.websocket.ListenWebSocket</type>
+                </processors>
+            </contents>
+            <defaultBackPressureDataSizeThreshold>1 GB</defaultBackPressureDataSizeThreshold>
+            <defaultBackPressureObjectThreshold>10000</defaultBackPressureObjectThreshold>
+            <defaultFlowFileExpiration>0 sec</defaultFlowFileExpiration>
+            <flowfileConcurrency>UNBOUNDED</flowfileConcurrency>
+            <flowfileOutboundPolicy>STREAM_WHEN_AVAILABLE</flowfileOutboundPolicy>
+            <name>wsReader</name>
+            <variables/>
+        </processGroups>
+    </snippet>
+    <timestamp>11/29/2022 09:11:59 UTC</timestamp>
+</template>

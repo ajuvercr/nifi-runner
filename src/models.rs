@@ -2,6 +2,32 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::Value;
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum ServiceRunStatus {
+    Running,
+    Stopped,
+    Enabled,
+    Enabling,
+    Disabled,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ProcessRunStatus {
+    Running,
+    Stopped,
+    Disabled,
+    Validating,
+    Invalid,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StatusDTO<Status> {
+    #[serde(rename = "runStatus")]
+    pub status: Status,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ControllerServiceTypesEntity {
@@ -26,6 +52,12 @@ pub struct DocumentedTypeDTO {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ControllerServicesEntity {
+    #[serde(rename = "controllerServices")]
+    pub services: Vec<ControllerServiceEntity>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ControllerServiceApiDTO {
     #[serde(rename = "type")]
     ty: String,
@@ -41,10 +73,11 @@ pub struct ControllerServiceDTO {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct VersionedEntity<Comp> {
+pub struct VersionedEntity<Comp, S> {
     pub id: String,
     pub revision: RevisionDTO,
     pub component: Component<Comp>,
+    pub status: S,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -56,10 +89,11 @@ pub struct Component<T> {
     pub comp: T,
 }
 
-pub type ProcessGroupEntity = VersionedEntity<ProcessGroupDTO>;
-pub type ProcessorEntity = VersionedEntity<ProcessorDTO>;
-pub type ControllerServiceEntity = VersionedEntity<ControllerServiceDTO>;
-pub type PortEntity = VersionedEntity<PortDTO>;
+pub type ProcessGroupEntity = VersionedEntity<ProcessGroupDTO, Value>;
+pub type ProcessorEntity = VersionedEntity<ProcessorDTO, StatusDTO<ProcessRunStatus>>;
+pub type ControllerServiceEntity =
+    VersionedEntity<ControllerServiceDTO, StatusDTO<ServiceRunStatus>>;
+pub type PortEntity = VersionedEntity<PortDTO, Value>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RevisionDTO {

@@ -1,27 +1,50 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 
+use derive::Query;
 use oxigraph::{
     model::Term,
     sparql::{QueryResults, QuerySolution},
     store::Store,
 };
 
-use crate::util::unwrap_literal;
+#[derive(Clone, Copy)]
+pub struct Sol<'a>(&'a QuerySolution);
 
-macro_rules! name {
-    ($sol:ident, $key:ident) => {
-        $sol.get(stringify!($key)).ok_or(stringify!($key))
-    };
+impl<'a> Deref for Sol<'a> {
+    type Target = QuerySolution;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 pub trait WithSubject {
     fn subject(&self) -> &Term;
 }
 
+pub trait FromQuery: Sized {
+    fn from_query(sol: Sol) -> Result<Self, &'static str>;
+}
+
+impl FromQuery for () {
+    fn from_query(_: Sol) -> Result<Self, &'static str> {
+        Ok(())
+    }
+}
+
+impl<T> FromQuery for T
+where
+    T: for<'a> TryFrom<Sol<'a>, Error = &'static str>,
+{
+    fn from_query(sol: Sol) -> Result<Self, &'static str> {
+        sol.try_into()
+    }
+}
+
 pub trait Queryable {
     const ERROR: &'static str;
     const QUERY: &'static str;
-    type Output: TryFrom<QuerySolution, Error = &'static str>;
+    type Output;
 }
 
 #[derive(Clone, Debug)]
@@ -31,14 +54,37 @@ pub enum ShaclType {
     None,
 }
 
-#[derive(Clone, Debug)]
-pub struct QuerySolutionOutput {
-    pub subject: Term,
+impl FromQuery for ShaclType {
+    fn from_query(sol: Sol) -> Result<Self, &'static str> {
+        Ok(match (sol.get("datatype"), sol.get("class")) {
+            (None, None) => ShaclType::None,
+            (Some(x), None) => ShaclType::DataType(x.to_owned()),
+            (None, Some(x)) => ShaclType::Class(x.to_owned()),
+            (Some(_), Some(_)) => return Err("Both datatype and class specified"),
+        })
+    }
+}
 
-    pub nifi_key: Option<String>,
-    pub value: Term,
+impl<T> FromQuery for Option<T>
+where
+    T: FromQuery,
+{
+    fn from_query(sol: Sol) -> Result<Self, &'static str> {
+        match T::from_query(sol) {
+            Ok(x) => Ok(Some(x)),
+            Err(_) => Ok(None),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Query)]
+pub struct QuerySolutionOutput {
+    pub subject: QueryField<Term, "subject">,
+
+    pub nifi_key: Option<QueryString<"nifi_key">>,
+    pub value: QueryField<Term, "value">,
     pub shacl_type: ShaclType,
-    pub ty: String,
+    pub ty: QueryString<"ty">,
 }
 
 pub struct ProcessorQuery;
@@ -80,83 +126,62 @@ impl WithSubject for QuerySolutionOutput {
     }
 }
 
-impl TryFrom<QuerySolution> for QuerySolutionOutput {
-    type Error = &'static str;
+type St = &'static str;
 
-    fn try_from(sol: QuerySolution) -> Result<Self, Self::Error> {
-        let rest: HashMap<_, _> = sol
-            .into_iter()
-            .map(|(v, k)| (v.as_str().to_string(), k.to_owned()))
-            .collect();
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
+pub struct QueryField<T, const KEY: St>(pub T);
+pub type QueryString<const KEY: St> = QueryField<String, KEY>;
 
-        let subject = name!(rest, subject)?.to_owned();
+impl<T, const KEY: &'static str> Deref for QueryField<T, KEY> {
+    type Target = T;
 
-        let nifi_key = rest
-            .get("nifi_key")
-            .and_then(unwrap_literal)
-            .map(String::from);
-
-        let shacl_type = match (rest.get("datatype"), rest.get("class")) {
-            (None, None) => ShaclType::None,
-            (Some(x), None) => ShaclType::DataType(x.to_owned()),
-            (None, Some(x)) => ShaclType::Class(x.to_owned()),
-            (Some(_), Some(_)) => return Err("Both datatype and class specified"),
-        };
-
-        let ty = rest
-            .get("ty")
-            .and_then(unwrap_literal)
-            .ok_or("ty")?
-            .to_owned();
-
-        let this = Self {
-            nifi_key,
-            value: name!(rest, value)?.to_owned(),
-            subject: subject.clone(),
-
-            shacl_type,
-            ty,
-        };
-
-        Ok(this)
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-#[derive(Debug)]
-pub struct NifiLinkQueryOutput {
-    pub source_id: String,
-    pub target_id: String,
-    pub key: String,
+impl<T, const KEY: &'static str> AsRef<T> for QueryField<T, KEY> {
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
 }
 
-impl TryFrom<QuerySolution> for NifiLinkQueryOutput {
-    type Error = &'static str;
+pub trait FromTerm: Sized {
+    fn from_term(this: &Term) -> Result<Self, &'static str>;
+}
 
-    fn try_from(value: QuerySolution) -> Result<Self, Self::Error> {
-        let source_id = value
-            .get("source_id")
-            .and_then(unwrap_literal)
-            .map(String::from)
-            .ok_or("source_id")?;
-
-        let target_id = value
-            .get("target_id")
-            .and_then(unwrap_literal)
-            .map(String::from)
-            .ok_or("target_id")?;
-
-        let key = value
-            .get("key")
-            .and_then(unwrap_literal)
-            .map(String::from)
-            .ok_or("key")?;
-
-        Ok(Self {
-            source_id,
-            target_id,
-            key,
-        })
+impl FromTerm for Term {
+    fn from_term(this: &Term) -> Result<Self, &'static str> {
+        Ok(this.clone())
     }
+}
+
+impl FromTerm for String {
+    fn from_term(this: &Term) -> Result<Self, &'static str> {
+        match this {
+            Term::NamedNode(_) => Err("Expected literal, found named node"),
+            Term::BlankNode(_) => Err("Expected literal, found blank node"),
+            Term::Literal(l) => Ok(l.value().to_string()),
+            Term::Triple(_) => Err("Expected literal, found triple"),
+        }
+    }
+}
+
+impl<T, const KEY: &'static str> FromQuery for QueryField<T, KEY>
+where
+    T: FromTerm,
+{
+    fn from_query(sol: Sol) -> Result<Self, &'static str> {
+        let v = sol.get(KEY).ok_or(KEY)?;
+        Ok(Self(T::from_term(v)?))
+    }
+}
+
+#[derive(Debug, Query)]
+pub struct NifiLinkQueryOutput<Rest> {
+    pub source_id: QueryString<"source_id">,
+    pub target_id: QueryString<"target_id">,
+    pub key: Rest,
 }
 
 pub struct NifiLinkQuery;
@@ -199,14 +224,17 @@ SELECT * WHERE {
      ?targetPath ?reader.
 }
 "#;
-    type Output = NifiLinkQueryOutput;
+    type Output = NifiLinkQueryOutput<QueryString<"key">>;
 }
 
-pub fn execute_query<T: Queryable>(store: &Store) -> Vec<T::Output> {
+pub fn execute_query<T: Queryable>(store: &Store) -> Vec<T::Output>
+where
+    T::Output: FromQuery,
+{
     if let QueryResults::Solutions(solutions) = store.query(T::QUERY).unwrap() {
         solutions
             .flatten()
-            .flat_map(|s| match T::Output::try_from(s) {
+            .flat_map(|s| match T::Output::from_query(Sol(&s)) {
                 Ok(x) => Some(x),
                 Err(e) => {
                     eprintln!("Failed to create {}: {}", T::ERROR, e);
@@ -221,13 +249,14 @@ pub fn execute_query<T: Queryable>(store: &Store) -> Vec<T::Output> {
 
 pub fn get_parameter_solutions<T: Queryable>(store: &Store) -> HashMap<Term, Vec<T::Output>>
 where
+    T::Output: FromQuery,
     T::Output: WithSubject,
 {
     let mut per_subject: HashMap<Term, Vec<T::Output>> = HashMap::new();
 
     if let QueryResults::Solutions(solutions) = store.query(T::QUERY).unwrap() {
         for sol in solutions.flatten() {
-            let param = match T::Output::try_from(sol) {
+            let param = match T::Output::from_query(Sol(&sol)) {
                 Ok(x) => x,
                 Err(x) => {
                     eprintln!("Failed to create solution parameter, {}", x);

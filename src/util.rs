@@ -82,10 +82,3 @@ impl RDFMapper {
         )
     }
 }
-
-pub fn unwrap_literal<'a>(x: &'a Term) -> Option<&str> {
-    match x {
-        Term::Literal(l) => Some(l.value()),
-        _ => None,
-    }
-}

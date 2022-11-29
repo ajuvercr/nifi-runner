@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use crate::logic::writer::{add_channel_writer, append_ontology};
+use crate::logic::reader::{self, add_channel_reader};
+use crate::logic::writer::{self, add_channel_writer};
 use crate::logic::{import_file_to_store, import_reader_to_store};
 use crate::sparql::{
     execute_query, get_parameter_solutions, NifiLinkQuery, NifiLinkQueryOutput, ProcessorQuery,
-    QuerySolutionOutput, ShaclType,
+    QuerySolutionOutput, QueryString, ShaclType,
 };
 use oxigraph::model::{GraphNameRef, Literal, NamedNodeRef, QuadRef, SubjectRef, Term, TermRef};
 use oxigraph::store::Store;
@@ -28,7 +29,8 @@ pub async fn startup(client: Nifi, ontology: String, input: Option<String>) {
     println!("Loaded ontology {}", ontology);
     import_file_to_store(ontology, &store).expect("Load file to store");
 
-    append_ontology(&store).expect("Loading WS ontology");
+    writer::append_ontology(&store).expect("Loading WS writer ontology");
+    reader::append_ontology(&store).expect("Loading WS reader ontology");
 
     let mut create_processors = HashMap::new();
 
@@ -44,6 +46,13 @@ pub async fn startup(client: Nifi, ontology: String, input: Option<String>) {
     }
 
     add_channel_writer(&client, &store, &create_processors).await;
+    add_channel_reader(&client, &store, &create_processors).await;
+
+    for proc in create_processors.into_values() {
+        if let Err(e) = client.start_processor(&proc.id).await {
+            println!("Start processor failed\n{:?}", e);
+        }
+    }
 }
 
 pub fn as_subject_ref(t: TermRef) -> SubjectRef {
@@ -59,7 +68,7 @@ async fn create_processor(
     solution: Vec<QuerySolutionOutput>,
     store: &Store,
 ) -> (String, Component<ProcessorDTO>) {
-    println!("Creating processor");
+    println!("Creating processor {:?}", solution[0].ty);
     let mut proc = client
         .new_processor(&solution[0].ty)
         .await
@@ -69,7 +78,7 @@ async fn create_processor(
 
     store
         .insert(QuadRef {
-            subject: as_subject_ref(solution[0].subject.as_ref()),
+            subject: as_subject_ref(solution[0].subject.0.as_ref()),
             predicate: NamedNodeRef::new(ID_TERM).unwrap().into(),
             object: v.as_ref().into(),
             graph_name: GraphNameRef::DefaultGraph,
@@ -82,7 +91,7 @@ async fn create_processor(
         }
 
         let key = sol.nifi_key.unwrap();
-        let object = match sol.value {
+        let object = match sol.value.0 {
             Term::Literal(v) => v.destruct().0,
             _ => panic!("Not a literal"),
         };
@@ -91,33 +100,29 @@ async fn create_processor(
             .comp
             .config
             .properties
-            .insert(key, Some(object));
+            .insert(key.0, Some(object));
     }
 
     println!("Updating processor");
     client
-        .update_prcocessor(&proc.id, &proc)
+        .update_processor(&proc.id, &proc)
         .await
         .expect("Nifi failed med");
 
     (proc.id, proc.component)
 }
 
-async fn add_nifi_link(
-    client: &Nifi,
-    NifiLinkQueryOutput {
-        source_id,
-        target_id,
-        key,
-    }: NifiLinkQueryOutput,
-    procs: &HashMap<String, Component<ProcessorDTO>>,
+async fn add_nifi_link<'a>(
+    client: &'a Nifi,
+    link: NifiLinkQueryOutput<QueryString<"key">>,
+    procs: &'a HashMap<String, Component<ProcessorDTO>>,
 ) -> Option<()> {
     println!("Adding link between processors");
 
-    let source = procs.get(&source_id)?;
-    let target = procs.get(&target_id)?;
+    let source = procs.get(&link.source_id as &str)?;
+    let target = procs.get(&link.target_id as &str)?;
 
-    let body = ConnectionEntity::new(&source, &target, Some(&key));
+    let body = ConnectionEntity::new(&source, &target, Some(&link.key));
 
     client
         .create_conection(body)

@@ -17,3 +17,5 @@ serde_json = "1.0.87"
 simple-xml = "0.1.10"
 tokio = { version = "1.21.2", features = ["rt", "macros"] }
 async-trait = "0.1.58"
+
+derive = { path = "./derive" }
