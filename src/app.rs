@@ -66,6 +66,8 @@ pub enum ListAction {
     Types {
         #[arg(short, long)]
         filter: Option<Vec<String>>,
+        #[arg(long)]
+        full: bool,
     },
     /// List all currently supported nifi controller services
     Services {

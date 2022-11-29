@@ -91,29 +91,26 @@ pub struct ProcessorQuery;
 impl Queryable for ProcessorQuery {
     const ERROR: &'static str = "Process Query";
     const QUERY: &'static str = r#" 
-BASE <http://example.com/ns#>
 PREFIX nifi: <https://w3id.org/conn/nifi#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX : <https://w3id.org/conn#> 
                 
   SELECT * WHERE {
 
-    ?tys a <NifiProcess>;
-      :processProperties [
-        nifi:type ?ty
-      ];
-      :shape [
+    ?tys a nifi:NifiProcess;
+        nifi:type ?ty.
+
+    ?shape sh:targetClass ?tys;
         sh:property [
           sh:path ?p;
-        ];
-      ].
+        ].
 
     ?subject a ?tys;
       ?p ?value.
 
-    OPTIONAL { ?tys :shape [ sh:property [ sh:path ?p; sh:datatype ?datatype]]}
-    OPTIONAL { ?tys :shape [ sh:property [ sh:path ?p; sh:class ?class]]}
-    OPTIONAL { ?tys :shape [ sh:property [ sh:path ?p; nifi:key ?nifi_key]]}
+    OPTIONAL { ?shape sh:property [ sh:path ?p; sh:datatype ?datatype ] }
+    OPTIONAL { ?shape sh:property [ sh:path ?p; sh:class ?class ] }
+    OPTIONAL { ?shape sh:property [ sh:path ?p; nifi:key ?nifi_key ] }
   }
 "#;
 
@@ -188,32 +185,29 @@ pub struct NifiLinkQuery;
 impl Queryable for NifiLinkQuery {
     const ERROR: &'static str = "Nifi link query";
     const QUERY: &'static str = r#"
-BASE <http://example.com/ns#>
 PREFIX nifi: <https://w3id.org/conn/nifi#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX : <https://w3id.org/conn#> 
                 
 SELECT * WHERE {
-    _:channel a :NifiChannel;
+    _:channel a nifi:NifiChannel;
       :reader ?reader;
       :writer ?writer.
 
-    ?sourceTy a <NifiProcess>;
-      :shape [
-        sh:property [
-          sh:class :WriterChannel;
-          sh:path ?sourcePath;
-          nifi:key ?key;
-        ]
-      ].
+    ?sourceTy a nifi:NifiProcess.
+    [] sh:targetClass ?sourceType;
+       sh:property [
+         sh:class :WriterChannel;
+         sh:path ?sourcePath;
+         nifi:key ?key;
+       ].
 
-    ?targetTy a <NifiProcess>;
-      :shape [
-        sh:property [
-          sh:class :ReaderChannel;
-          sh:path ?targetPath;
-        ]
-      ].
+    ?targetTy a nifi:NifiProcess.
+    [] sh:targetClass ?targetTy;
+       sh:property [
+         sh:class :ReaderChannel;
+         sh:path ?targetPath;
+       ].
 
    _:source a ?sourceTy;
      <http://example.com/ns#testing+id> ?source_id;

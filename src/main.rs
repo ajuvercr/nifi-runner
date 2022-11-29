@@ -3,7 +3,9 @@ use crate::models::DocumentedTypeDTO;
 use app::{Actives, ListAction, Output, RunArgs};
 use clap::Parser;
 use client::Nifi;
+use oxiri::Iri;
 use rdf::{RdfContext, ToRDF};
+use rio_turtle::{TurtleFormatter, TurtleParser};
 use serde::Serialize;
 use std::io::Write;
 use std::{
@@ -45,13 +47,15 @@ fn format_output<T: Serialize + ToRDF>(item: T, args: RunArgs) {
             let mut ctx = RdfContext::default();
             <T>::add_ctx(&mut ctx);
             let prefixes = ctx.prefixes();
-            write!(cursor, "@base <{}> .\n", base).unwrap();
+
             cursor.write_all(prefixes.as_bytes()).unwrap();
             item.to_rdf(&mut cursor).unwrap();
             cursor.set_position(0);
 
             std::io::copy(&mut cursor, &mut stdout().lock()).unwrap();
 
+            // use rio_api::formatter::TriplesFormatter;
+            // use rio_api::parser::TriplesParser;
             // let mut turtle_fmt = TurtleFormatter::new(stdout());
             //
             // let mut turtle_parser =
@@ -65,23 +69,32 @@ fn format_output<T: Serialize + ToRDF>(item: T, args: RunArgs) {
     }
 }
 
-fn list_and_print(items: Vec<DocumentedTypeDTO>, filter: Option<Vec<String>>, args: RunArgs) {
+fn filter_list(
+    items: Vec<DocumentedTypeDTO>,
+    filter: Option<Vec<String>>,
+) -> Vec<DocumentedTypeDTO> {
     let types = if let Some(filters) = filter {
         let filters_lower_case: Vec<_> = filters.into_iter().map(|x| x.to_lowercase()).collect();
 
         items
             .into_iter()
             .filter(|x| {
-                x.tags
-                    .iter()
-                    .any(|y| filters_lower_case.contains(&y.to_lowercase()))
+                x.description
+                    .as_ref()
+                    .map(|x| x.to_lowercase())
+                    .map(|x| filters_lower_case.iter().any(|y| x.contains(y)))
+                    .unwrap_or_default()
+                    || x.tags
+                        .iter()
+                        .map(|x| x.to_lowercase())
+                        .any(|x| filters_lower_case.iter().any(|y| x.contains(y)))
             })
             .collect()
     } else {
         items
     };
 
-    format_output(&types, args);
+    types
 }
 
 async fn handle_list_action(
@@ -90,13 +103,25 @@ async fn handle_list_action(
     output: RunArgs,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match action {
-        ListAction::Types { filter } => {
+        ListAction::Types { filter, full } => {
             let types = client.list_types().await?;
-            list_and_print(types.types, filter, output);
+            let types = filter_list(types.types, filter);
+            if full {
+                let mut out = Vec::new();
+                for p in types {
+                    let processor = client.new_processor(&p.ty).await?;
+                    client.delete_processor(&processor.id, 1).await?;
+                    out.push(processor);
+                }
+                format_output(&out, output);
+            } else {
+                format_output(&types, output);
+            }
         }
         ListAction::Services { filter } => {
             let types = client.list_services_types().await?;
-            list_and_print(types.types, filter, output);
+            let types = filter_list(types.types, filter);
+            format_output(&types, output);
         }
         ListAction::Type { ty } => {
             let processor = client.new_processor(&ty).await?;

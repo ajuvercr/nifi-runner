@@ -173,29 +173,29 @@ impl Queryable for ReaderQuery {
     const ERROR: &'static str = "WS Reader query";
 
     const QUERY: &'static str = r#"
-BASE <http://example.com/ns#>
 PREFIX nifi: <https://w3id.org/conn/nifi#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX : <https://w3id.org/conn#> 
                 
 SELECT DISTINCT ?reader_type ?subject ?nifi_key ?value WHERE {
-    ?sourceTy a <NifiProcess>;
-      :shape [
+    ?sourceTy a nifi:NifiProcess.
+
+
+    [] sh:targetClass ?sourceTy;
+       sh:property [
+         sh:class :ReaderChannel;
+         sh:path ?sourcePath;
+       ].
+
+    _:source a ?sourceTy;
+        ?sourcePath ?subject.
+
+
+    [] sh:targetClass ?reader_type;
         sh:property [
-          sh:class :ReaderChannel;
-          sh:path ?sourcePath;
-        ]
-      ].
-
-     _:source a ?sourceTy;
-         ?sourcePath ?subject.
-
-    ?reader_type :shape [
-      sh:property [
-        sh:path ?p;
-        nifi:key ?nifi_key;
-      ]
-    ].
+          sh:path ?p;
+          nifi:key ?nifi_key;
+        ].
 
     ?subject a ?reader_type;
       ?p ?value.
@@ -208,19 +208,18 @@ impl Queryable for ReaderLink {
     const ERROR: &'static str = "WS reader link";
 
     const QUERY: &'static str = r#"
-BASE <http://example.com/ns#>
 PREFIX nifi: <https://w3id.org/conn/nifi#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX : <https://w3id.org/conn#> 
 
 SELECT * {
-    ?sourceTy a <NifiProcess>;
-      :shape [
+    ?sourceTy a nifi:NifiProcess.
+
+    [] sh:targetClass ?sourceTy;
         sh:property [
           sh:class :ReaderChannel;
           sh:path ?sourcePath;
-        ]
-      ].
+        ].
     
      _:source a ?sourceTy;
        <http://example.com/ns#testing+id> ?target_id;

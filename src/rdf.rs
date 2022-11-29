@@ -94,19 +94,17 @@ impl ToRDF for &ControllerServiceDTO {
         write!(
             buf,
             r#"
-    <{}> a <NifiProcess>;
-      :processProperties [
-        nifi:type {:?};
-      ];
-      :shape [
-        a sh:NodeShape;
-        sh:targetClass <{}>; "#,
+    nifi:{} a nifi:NifiProcess;
+        nifi:type {:?}.
+
+    [] a sh:NodeShape;
+        sh:targetClass nifi:{}; "#,
             self.name, self.ty, self.name
         )?;
 
         self.descriptors.values().try_for_each(|x| x.to_rdf(buf))?;
 
-        write!(buf, "].",)?;
+        write!(buf, ".",)?;
 
         Ok(())
     }
@@ -136,16 +134,14 @@ impl ToRDF for &ProcessorDTO {
         write!(
             buf,
             r#"
-    <{}> a <NifiProcess>;
-      :processProperties [
-        nifi:type {:?};
-      ];
-      :shape [
-        a sh:NodeShape;
-        sh:targetClass <{}>;
-        sh:property [
+    nifi:{} a nifi:NifiProcess;
+        nifi:type {:?}.
+
+    [] a sh:NodeShape;
+       sh:targetClass nifi:{};
+       sh:property [
           sh:class :ReaderChannel;
-          sh:path <INCOMING_CHANNEL>;
+          sh:path nifi:INCOMING_CHANNEL;
           sh:name "Incoming channel";
           sh:description "Combination of all incoming channels";
         ];
@@ -159,7 +155,7 @@ impl ToRDF for &ProcessorDTO {
             .values()
             .try_for_each(|x| x.to_rdf(buf))?;
 
-        write!(buf, "] .")?;
+        write!(buf, ".")?;
         Ok(())
     }
 }
@@ -175,7 +171,7 @@ impl ToRDF for &RelationshipDTO {
             buf,
             r#" sh:property [
           sh:class :WriterChannel;
-          sh:path <{}>;
+          sh:path nifi:{};
           nifi:key {:?};
           sh:name {:?};   "#,
             path, self.name, self.name
@@ -201,7 +197,7 @@ impl ToRDF for &DescriptorDTO {
             r#"
     sh:property [
           sh:datatype xsd:string;
-          sh:path <{}>;
+          sh:path nifi:{};
           sh:name {:?};
           sh:description {:?};
           sh:minCount {};

@@ -6,8 +6,8 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
-:WsWriterChannel rdfs:subClassOf :WriterChannel;
-  :shape [
+:WsWriterChannel rdfs:subClassOf :WriterChannel.
+[] sh:targetClass :WsWriterChannel;
     sh:property [
       sh:datatype xsd:string;
       sh:name "Ws connection url";
@@ -15,11 +15,10 @@
       sh:path :wsUri;
       sh:minCount "1"^^xsd:integer;
       nifi:key "wsEndpoint";
-    ]
-  ].
+    ].
 
-:WsReaderChannel rdfs:subClassOf :ReaderChannel;
-  :shape [
+:WsReaderChannel rdfs:subClassOf :ReaderChannel.
+[] sh:targetClass :WsReaderChannel;
     sh:property [
       sh:datatype xsd:integer;
       sh:name "Ws server port";
@@ -27,6 +26,5 @@
       sh:path :wsPort;
       sh:minCount "1"^^xsd:integer;
       nifi:key "wsPort";
-    ]
-  ].
+    ].
 

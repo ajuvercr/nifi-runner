@@ -160,30 +160,28 @@ impl Queryable for WriterQuery {
     const ERROR: &'static str = "WS Writer query";
 
     const QUERY: &'static str = r#"
-BASE <http://example.com/ns#>
 PREFIX nifi: <https://w3id.org/conn/nifi#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX : <https://w3id.org/conn#> 
                 
 SELECT DISTINCT ?writer_type ?subject ?nifi_key ?value WHERE {
-    ?sourceTy a <NifiProcess>;
-      :shape [
+    ?sourceTy a nifi:NifiProcess.
+
+    [] sh:targetClass ?sourceTy;
         sh:property [
           sh:class :WriterChannel;
           sh:path ?sourcePath;
           nifi:key ?writerKey;
-        ]
-      ].
+        ].
 
      _:source a ?sourceTy;
          ?sourcePath ?subject.
 
-    ?writer_type :shape [
-      sh:property [
-        sh:path ?p;
-        nifi:key ?nifi_key;
-      ]
-    ].
+    [] sh:targetClass ?writer_type;
+        sh:property [
+          sh:path ?p;
+          nifi:key ?nifi_key;
+        ].
 
     ?subject a ?writer_type;
       ?p ?value.
@@ -196,20 +194,18 @@ impl Queryable for WriterLink {
     const ERROR: &'static str = "WS writer link";
 
     const QUERY: &'static str = r#"
-BASE <http://example.com/ns#>
 PREFIX nifi: <https://w3id.org/conn/nifi#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX : <https://w3id.org/conn#> 
 
 SELECT * {
-    ?sourceTy a <NifiProcess>;
-      :shape [
+    ?sourceTy a nifi:NifiProcess.
+    [] sh:targetClass ?sourceTy;
         sh:property [
           sh:class :WriterChannel;
           sh:path ?sourcePath;
           nifi:key ?key;
-        ]
-      ].
+        ].
     
      _:source a ?sourceTy;
        <http://example.com/ns#testing+id> ?source_id;
