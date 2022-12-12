@@ -1,9 +1,17 @@
-@prefix nifi: <https://w3id.org/conn/nifi#> .
+@prefix fno: <https://w3id.org/function/ontology#> .
+@prefix fnom: <https://w3id.org/function/vocabulary/mapping#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix nifi: <https://w3id.org/conn/nifi#> .
 @prefix : <https://w3id.org/conn#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 
     nifi:LdesClient a nifi:NifiProcess;
+        nifi:mapping [ fno:parameterMapping [ fnom:functionParameter nifi:data-destination-format; fnom:implementationParameterPosition "DATA_DESTINATION_FORMAT" ] ]; 
+nifi:mapping [ fno:parameterMapping [ fnom:functionParameter nifi:data-source-format; fnom:implementationParameterPosition "DATA_SOURCE_FORMAT" ] ]; 
+nifi:mapping [ fno:parameterMapping [ fnom:functionParameter nifi:fragment-expiration-interval; fnom:implementationParameterPosition "FRAGMENT_EXPIRATION_INTERVAL" ] ]; 
+nifi:mapping [ fno:parameterMapping [ fnom:functionParameter nifi:data-source-url; fnom:implementationParameterPosition "DATA_SOURCE_URL" ] ]; 
+nifi:mapping [ fno:parameterMapping [ fnom:functionParameter nifi:data; fnom:implementationParameterPosition "data" ] ]; 
+
         nifi:type "be.vlaanderen.informatievlaanderen.ldes.processors.LdesClient".
 
     [] a sh:NodeShape;
@@ -17,33 +25,28 @@
          sh:property [
           sh:class :WriterChannel;
           sh:path nifi:data;
-          nifi:key "data";
           sh:name "data";     sh:description "Posts LDES members to the remote URL";];
     sh:property [
           sh:datatype xsd:string;
           sh:path nifi:data-destination-format;
           sh:name "Data destination format";
           sh:description "RDF format identifier of the data destination";
-          sh:minCount 0;
-          nifi:key "DATA_DESTINATION_FORMAT"; sh:defaultValue "n-quads";] ;
-    sh:property [
-          sh:datatype xsd:string;
-          sh:path nifi:fragment-expiration-interval;
-          sh:name "Fragment expiration interval";
-          sh:description "The number of seconds to expire a mutable fragment when the Cache-control header contains no max-age value";
-          sh:minCount 0;
-          nifi:key "FRAGMENT_EXPIRATION_INTERVAL"; sh:defaultValue "604800";] ;
-    sh:property [
-          sh:datatype xsd:string;
-          sh:path nifi:data-source-url;
-          sh:name "Data source url";
-          sh:description "Url to data source";
-          sh:minCount 1;
-          nifi:key "DATA_SOURCE_URL"; ] ;
+          sh:minCount 0;sh:defaultValue "n-quads";] ;
     sh:property [
           sh:datatype xsd:string;
           sh:path nifi:data-source-format;
           sh:name "Data source format";
           sh:description "RDF format identifier of the data source";
-          sh:minCount 0;
-          nifi:key "DATA_SOURCE_FORMAT"; sh:defaultValue "JSONLD11";] ;.
+          sh:minCount 0;sh:defaultValue "JSONLD11";] ;
+    sh:property [
+          sh:datatype xsd:string;
+          sh:path nifi:fragment-expiration-interval;
+          sh:name "Fragment expiration interval";
+          sh:description "The number of seconds to expire a mutable fragment when the Cache-control header contains no max-age value";
+          sh:minCount 0;sh:defaultValue "604800";] ;
+    sh:property [
+          sh:datatype xsd:string;
+          sh:path nifi:data-source-url;
+          sh:name "Data source url";
+          sh:description "Url to data source";
+          sh:minCount 1;] ;.

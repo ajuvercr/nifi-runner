@@ -23,13 +23,14 @@ _:b1 a :WsWriterChannel;
 
 _:b4 a nifi:LdesClient;
   nifi:INCOMING_CHANNEL _:wsReader;
+  nifi:INCOMING_CHANNEL _:b3;
   nifi:data _:b1;  
   nifi:data-source-format "n-quads";
   nifi:data-source-url "https://smartdata.dev-vlaanderen.be/base/gemeente".
 
-# _:b5 a <LdesClient>;
-#  <data> _:b2;
-#  <data> _:b1;  
-#  <data-source-format> "n-quads";
-#  <data-source-url> "https://smartdata.dev-vlaanderen.be/base/gemeente".
+_:b5 a nifi:LdesClient;
+  nifi:data _:b2;
+  nifi:data _:b1;  
+  nifi:data-source-format "n-quads";
+  nifi:data-source-url "https://smartdata.dev-vlaanderen.be/base/gemeente".
 

@@ -93,12 +93,15 @@ impl Queryable for ProcessorQuery {
     const QUERY: &'static str = r#" 
 PREFIX nifi: <https://w3id.org/conn/nifi#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX fno: <https://w3id.org/function/ontology#>
+PREFIX fnom: <https://w3id.org/function/vocabulary/mapping#>
 PREFIX : <https://w3id.org/conn#> 
                 
   SELECT * WHERE {
 
     ?tys a nifi:NifiProcess;
-        nifi:type ?ty.
+        nifi:type ?ty
+        .
 
     ?shape sh:targetClass ?tys;
         sh:property [
@@ -110,7 +113,14 @@ PREFIX : <https://w3id.org/conn#>
 
     OPTIONAL { ?shape sh:property [ sh:path ?p; sh:datatype ?datatype ] }
     OPTIONAL { ?shape sh:property [ sh:path ?p; sh:class ?class ] }
-    OPTIONAL { ?shape sh:property [ sh:path ?p; nifi:key ?nifi_key ] }
+    OPTIONAL {
+      ?tys nifi:mapping [
+        fno:parameterMapping [
+          fnom:functionParameter ?p;
+          fnom:implementationParameterPosition ?nifi_key;
+        ]
+      ].
+    }
   }
 "#;
 
@@ -187,6 +197,8 @@ impl Queryable for NifiLinkQuery {
     const QUERY: &'static str = r#"
 PREFIX nifi: <https://w3id.org/conn/nifi#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX fno: <https://w3id.org/function/ontology#>
+PREFIX fnom: <https://w3id.org/function/vocabulary/mapping#>
 PREFIX : <https://w3id.org/conn#> 
                 
 SELECT * WHERE {
@@ -199,10 +211,17 @@ SELECT * WHERE {
        sh:property [
          sh:class :WriterChannel;
          sh:path ?sourcePath;
-         nifi:key ?key;
        ].
 
+    ?sourceType nifi:mapping [
+        fno:parameterMapping [
+          fnom:functionParameter ?sourcePath;
+          fnom:implementationParameterPosition ?key;
+        ]
+      ].
+
     ?targetTy a nifi:NifiProcess.
+
     [] sh:targetClass ?targetTy;
        sh:property [
          sh:class :ReaderChannel;
@@ -225,6 +244,8 @@ pub fn execute_query<T: Queryable>(store: &Store) -> Vec<T::Output>
 where
     T::Output: FromQuery,
 {
+    println!("Exectuting query {}", stringify!(T));
+
     if let QueryResults::Solutions(solutions) = store.query(T::QUERY).unwrap() {
         solutions
             .flatten()

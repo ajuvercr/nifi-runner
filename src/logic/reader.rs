@@ -174,6 +174,8 @@ impl Queryable for ReaderQuery {
 
     const QUERY: &'static str = r#"
 PREFIX nifi: <https://w3id.org/conn/nifi#>
+PREFIX fno: <https://w3id.org/function/ontology#>
+PREFIX fnom: <https://w3id.org/function/vocabulary/mapping#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX : <https://w3id.org/conn#> 
                 
@@ -187,6 +189,13 @@ SELECT DISTINCT ?reader_type ?subject ?nifi_key ?value WHERE {
          sh:path ?sourcePath;
        ].
 
+    ?reader_type nifi:mapping [
+      fno:parameterMapping [
+        fnom:functionParameter ?p;
+        fnom:implementationParameterPosition ?nifi_key;
+      ]
+    ].
+
     _:source a ?sourceTy;
         ?sourcePath ?subject.
 
@@ -194,7 +203,6 @@ SELECT DISTINCT ?reader_type ?subject ?nifi_key ?value WHERE {
     [] sh:targetClass ?reader_type;
         sh:property [
           sh:path ?p;
-          nifi:key ?nifi_key;
         ].
 
     ?subject a ?reader_type;
@@ -209,6 +217,8 @@ impl Queryable for ReaderLink {
 
     const QUERY: &'static str = r#"
 PREFIX nifi: <https://w3id.org/conn/nifi#>
+PREFIX fno: <https://w3id.org/function/ontology#>
+PREFIX fnom: <https://w3id.org/function/vocabulary/mapping#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX : <https://w3id.org/conn#> 
 

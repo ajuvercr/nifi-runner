@@ -16,6 +16,8 @@ pub mod prefix {
     pub static SDS: Prefix = ("sds", "https://w3id.org/sds#");
     pub static CONN: Prefix = ("", "https://w3id.org/conn#");
     pub static NIFI: Prefix = ("nifi", "https://w3id.org/conn/nifi#");
+    pub static FNO: Prefix = ("fno", "https://w3id.org/function/ontology#");
+    pub static FNOM: Prefix = ("fnom", "https://w3id.org/function/vocabulary/mapping#");
 }
 use prefix::*;
 
@@ -127,14 +129,40 @@ impl ToRDF for &ProcessorDTO {
 
         ctx.add_prefix(&CONN);
         ctx.add_prefix(&SH);
+        ctx.add_prefix(&FNO);
+        ctx.add_prefix(&FNOM);
         <&RelationshipDTO>::add_ctx(ctx);
         <&DescriptorDTO>::add_ctx(ctx);
     }
     fn to_rdf(self, buf: &mut impl Write) -> std::io::Result<()> {
+        let desc_mapping: String = self
+            .config
+            .descriptors
+            .iter()
+            .map(|(_, x)| {
+                let path = make_path_safe(&x.name);
+                format!(
+                    "nifi:mapping [ fno:parameterMapping [ fnom:functionParameter nifi:{}; fnom:implementationParameterPosition {:?} ] ]; \n",
+                    path, x.name
+                )
+            }).collect();
+
+        let rel_mapping: String =  self
+            .relationships
+            .iter()
+            .map(|x| {
+                let path = make_path_safe(&x.name);
+                format!(
+                    "nifi:mapping [ fno:parameterMapping [ fnom:functionParameter nifi:{}; fnom:implementationParameterPosition {:?} ] ]; \n",
+                    path, x.name
+                )
+            }).collect();
+
         write!(
             buf,
             r#"
     nifi:{} a nifi:NifiProcess;
+        {}{}
         nifi:type {:?}.
 
     [] a sh:NodeShape;
@@ -146,7 +174,7 @@ impl ToRDF for &ProcessorDTO {
           sh:description "Combination of all incoming channels";
         ];
         "#,
-            self.name, self.ty, self.name
+            self.name, desc_mapping, rel_mapping, self.ty, self.name
         )?;
 
         self.relationships.iter().try_for_each(|x| x.to_rdf(buf))?;
@@ -172,9 +200,8 @@ impl ToRDF for &RelationshipDTO {
             r#" sh:property [
           sh:class :WriterChannel;
           sh:path nifi:{};
-          nifi:key {:?};
           sh:name {:?};   "#,
-            path, self.name, self.name
+            path, self.name
         )?;
 
         if let Some(ref desc) = self.description {
@@ -200,9 +227,8 @@ impl ToRDF for &DescriptorDTO {
           sh:path nifi:{};
           sh:name {:?};
           sh:description {:?};
-          sh:minCount {};
-          nifi:key {:?}; "#,
-            path, self.display, self.description, self.required as u32, self.name
+          sh:minCount {};"#,
+            path, self.display, self.description, self.required as u32
         )?;
 
         if let Some(ref df) = self.default_value {

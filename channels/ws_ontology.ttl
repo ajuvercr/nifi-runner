@@ -5,26 +5,43 @@
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix fno: <https://w3id.org/function/ontology#> .
+@prefix fnom: <https://w3id.org/function/vocabulary/mapping#> .
 
-:WsWriterChannel rdfs:subClassOf :WriterChannel.
+
+:WsWriterChannel rdfs:subClassOf :WriterChannel;
+  nifi:mapping [
+    fno:parameterMapping [
+      fnom:functionParameter :wsUri;
+      fnom:implementationParameterPosition "wsEndpoint";
+    ]
+  ].
+
 [] sh:targetClass :WsWriterChannel;
-    sh:property [
-      sh:datatype xsd:string;
-      sh:name "Ws connection url";
-      sh:description "Connection endpoint to forward messages to";
-      sh:path :wsUri;
-      sh:minCount "1"^^xsd:integer;
-      nifi:key "wsEndpoint";
-    ].
+  sh:property [
+    sh:datatype xsd:string;
+    sh:name "Ws connection url";
+    sh:description "Connection endpoint to forward messages to";
+    sh:path :wsUri;
+    sh:minCount "1"^^xsd:integer;
+    nifi:key "wsEndpoint";
+  ].
 
-:WsReaderChannel rdfs:subClassOf :ReaderChannel.
+:WsReaderChannel rdfs:subClassOf :ReaderChannel;
+  nifi:mapping [
+    fno:parameterMapping [
+      fnom:functionParameter :wsPort;
+      fnom:implementationParameterPosition "wsPort";
+    ]
+  ].
+
 [] sh:targetClass :WsReaderChannel;
-    sh:property [
-      sh:datatype xsd:integer;
-      sh:name "Ws server port";
-      sh:description "Starts a WS endpoint on this port";
-      sh:path :wsPort;
-      sh:minCount "1"^^xsd:integer;
-      nifi:key "wsPort";
-    ].
+  sh:property [
+    sh:datatype xsd:integer;
+    sh:name "Ws server port";
+    sh:description "Starts a WS endpoint on this port";
+    sh:path :wsPort;
+    sh:minCount "1"^^xsd:integer;
+    nifi:key "wsPort";
+  ].
 
