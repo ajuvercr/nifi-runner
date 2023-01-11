@@ -1,0 +1,64 @@
+@base <http://example.com/ns#>.
+@prefix nifi: <https://w3id.org/conn/nifi#> .
+@prefix ws: <https://w3id.org/conn/ws#> .
+@prefix : <https://w3id.org/conn#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix fno: <https://w3id.org/function/ontology#> .
+@prefix fnom: <https://w3id.org/function/vocabulary/mapping#> .
+
+
+:HttpWriterChannel rdfs:subClassOf :WriterChannel;
+  nifi:mapping [
+    fno:parameterMapping [
+      fnom:functionParameter :httpEndpoint;
+      fnom:implementationParameterPosition "HTTPEndpoint";
+    ],[
+      fnom:functionParameter :httpMethod;
+      fnom:implementationParameterPosition "HTTPMethod";
+    ]
+  ].
+
+[] sh:targetClass :HttpWriterChannel;
+  sh:property [
+    sh:datatype xsd:string;
+    sh:name "HTTP endpoint url";
+    sh:description "Endpoint to POST messages to";
+    sh:path :httpEndpoint;
+    sh:minCount "1"^^xsd:integer;
+  ],[
+    sh:datatype xsd:integer;
+    sh:name "HTTP method";
+    sh:description "HTTP method to use when sending messages";
+    sh:path :httpMethod;
+    sh:defaultValue "POST"
+  ].
+
+:HttpReaderChannel rdfs:subClassOf :ReaderChannel;
+  nifi:mapping [
+    fno:parameterMapping [
+      fnom:functionParameter :httpPort;
+      fnom:implementationParameterPosition "HTTPPort";
+    ],[
+      fnom:functionParameter :httpPath;
+      fnom:implementationParameterPosition "HTTPPath";
+    ]
+
+  ].
+
+[] sh:targetClass :HttpReaderChannel;
+  sh:property [
+    sh:datatype xsd:integer;
+    sh:name "HTTP server port";
+    sh:description "Starts a HTTP endpoint on this port";
+    sh:path :httpPort;
+    sh:minCount "1"^^xsd:integer;
+  ],[
+    sh:datatype xsd:integer;
+    sh:name "HTTP server path to listen to";
+    sh:description "Starts a HTTP endpoint on this port";
+    sh:path :httpPath;
+    sh:defaultValue "";
+  ].
+

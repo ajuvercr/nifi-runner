@@ -11,26 +11,25 @@
   :reader _:b3;
   :writer _:b2.
 
-[] a :WsChannel;
-  :writer _:b1;
-  :reader _:wsReader.
+[] a :HTTPChannel;
+  :writer _:httpWriter;
+  :reader _:httpReader.
 
-_:wsReader a :WsReaderChannel;
-  :wsPort "8123".
+_:httpReader a :HTTPReaderChannel;
+  :httpPort "3000".
 
-_:b1 a :WsWriterChannel;
-  :wsUri "ws://localhost:3000".
+_:httpWriter a :HTTPWriterChannel;
+  :httpEndpoint "http://host.docker.internal:8000".
 
 _:b4 a nifi:LdesClient;
-  nifi:INCOMING_CHANNEL _:wsReader;
+  nifi:INCOMING_CHANNEL _:httpReader;
   nifi:INCOMING_CHANNEL _:b3;
-  nifi:data _:b1;  
+  nifi:data _:httpWriter;  
   nifi:data-source-format "n-quads";
   nifi:data-source-url "https://smartdata.dev-vlaanderen.be/base/gemeente".
 
 _:b5 a nifi:LdesClient;
   nifi:data _:b2;
-  nifi:data _:b1;  
   nifi:data-source-format "n-quads";
   nifi:data-source-url "https://smartdata.dev-vlaanderen.be/base/gemeente".
 

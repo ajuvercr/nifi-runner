@@ -17,15 +17,20 @@ use crate::{
     },
 };
 
-static WRITERS: &[(&'static str, &'static str)] = &[(
-    "https://w3id.org/conn#WsWriterChannel",
-    "./channels/WSWriter.xml",
-)];
-
-const WS_ONTOLOGY: &'static str = "./channels/ws_ontology.ttl";
+static WRITERS: &[(&'static str, &'static str)] = &[
+    (
+        "https://w3id.org/conn#WsWriterChannel",
+        "./channels/WSWriter.xml",
+    ),
+    (
+        "https://w3id.org/conn#HttpWriterChannel",
+        "./channels/HTTPPostWriter.xml",
+    ),
+];
 
 pub fn append_ontology(store: &oxigraph::store::Store) -> std::io::Result<()> {
-    import_file_to_store(WS_ONTOLOGY, store)
+    import_file_to_store("./channels/ws_ontology.ttl", store)?;
+    import_file_to_store("./channels/http_ontology.ttl", store)
 }
 
 pub async fn add_channel_writer(
